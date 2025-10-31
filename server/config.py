@@ -46,6 +46,9 @@ class DevelopmentConfig(Config):
     SESSION_COOKIE_SECURE = False  # Allow HTTP in development
     SESSION_COOKIE_SAMESITE = 'Lax'
 
+    # Override for development - use SQLite instead of PostgreSQL
+    SQLALCHEMY_ENGINE_OPTIONS = {}  # Remove pool options for SQLite
+
 class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
