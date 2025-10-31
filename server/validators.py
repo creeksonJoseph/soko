@@ -1,56 +1,45 @@
-from marshmallow import Schema, fields, validate, ValidationError
-from flask import request, jsonify
-from functools import wraps
+import re
 
-class UserRegistrationSchema(Schema):
-    full_name = fields.Str(required=True, validate=validate.Length(min=2, max=100))
-    email = fields.Email(required=True)
-    password = fields.Str(required=True, validate=validate.Length(min=8, max=128))
-    role = fields.Str(validate=validate.OneOf(['buyer', 'artisan']), missing='buyer')
+def validate_email(email):
+    """Validate email format"""
+    if not email:
+        return False
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
 
-class UserLoginSchema(Schema):
-    email = fields.Email(required=True)
-    password = fields.Str(required=True)
+def validate_password(password):
+    """Validate password strength"""
+    if not password:
+        return False
+    return len(password) >= 6
 
-class ProductSchema(Schema):
-    title = fields.Str(required=True, validate=validate.Length(min=1, max=200))
-    description = fields.Str(required=True, validate=validate.Length(min=10, max=2000))
-    price = fields.Decimal(required=True, validate=validate.Range(min=0))
-    category = fields.Str(validate=validate.Length(max=50))
-    subcategory = fields.Str(validate=validate.Length(max=50))
-    stock = fields.Int(validate=validate.Range(min=0), missing=0)
-    image = fields.Url()
+def validate_phone(phone):
+    """Validate phone number (Kenyan format)"""
+    if not phone:
+        return True  # Phone is optional
+    # Simple validation for Kenyan phone numbers
+    pattern = r'^(?:\+254|0)[17]\d{8}$'
+    return re.match(pattern, phone) is not None
 
-class CartItemSchema(Schema):
-    product_id = fields.Int(required=True, validate=validate.Range(min=1))
-    quantity = fields.Int(validate=validate.Range(min=1, max=100), missing=1)
+def validate_required_fields(data, required_fields):
+    """Validate that all required fields are present"""
+    for field in required_fields:
+        if field not in data or not data[field]:
+            return f'{field} is required'
+    return None
 
-class ReviewSchema(Schema):
-    product_id = fields.Int(required=True, validate=validate.Range(min=1))
-    rating = fields.Int(required=True, validate=validate.Range(min=1, max=5))
-    comment = fields.Str(validate=validate.Length(max=1000))
+def validate_price(price):
+    """Validate price is positive number"""
+    try:
+        price_float = float(price)
+        return price_float > 0
+    except (ValueError, TypeError):
+        return False
 
-class MessageSchema(Schema):
-    receiver_id = fields.Int(required=True, validate=validate.Range(min=1))
-    message = fields.Str(required=True, validate=validate.Length(min=1, max=1000))
-    message_type = fields.Str(validate=validate.OneOf(['text', 'image', 'file']), missing='text')
-
-def validate_json(schema_class):
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            try:
-                data = request.get_json()
-                if not data:
-                    return {'error': 'No JSON data provided'}, 400
-                
-                schema = schema_class()
-                validated_data = schema.load(data)
-                request.validated_data = validated_data
-                return f(*args, **kwargs)
-            except ValidationError as err:
-                return {'error': 'Validation failed', 'details': err.messages}, 400
-            except Exception as e:
-                return {'error': 'Invalid JSON format'}, 400
-        return decorated_function
-    return decorator
+def validate_quantity(quantity):
+    """Validate quantity is positive integer"""
+    try:
+        quantity_int = int(quantity)
+        return quantity_int > 0
+    except (ValueError, TypeError):
+        return False
